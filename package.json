@@ -1,0 +1,10 @@
+{
+    "name": "jp.co.pcysl5edgo.addandbanishlogic",
+    "displayName": "Logic of 'Add and Banish!'",
+    "version": "0.1.0",
+    "unity": "2018.3",
+    "description": "This package provides the main logic written in functional programming way.",
+    "keywords": [],
+    "category": "Controllers",
+    "dependencies": {}
+}

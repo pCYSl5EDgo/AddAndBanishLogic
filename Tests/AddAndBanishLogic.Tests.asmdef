@@ -1,0 +1,19 @@
+{
+    "name": "AddAndBanishLogic.Tests",
+    "references": [
+        "GUID:8766e766695e5994d9abcb98a3b89dc2"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}
