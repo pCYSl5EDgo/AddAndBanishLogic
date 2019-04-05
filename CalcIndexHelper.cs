@@ -3,17 +3,22 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace AddAndBanish
 {
-    internal static class CalcIndexHelper
+    public static class CalcIndexHelper
     {
-        internal const sbyte NOT_REMOVE_CARD_NUMBER = sbyte.MaxValue;
+        public const sbyte NOT_REMOVE_CARD_NUMBER = sbyte.MaxValue;
 
-        internal static unsafe void MemClear(this sbyte[] array)
+        public static unsafe void MemClear(this sbyte[] array)
         {
             fixed (sbyte* ptr = &array[0])
             {
-                var value = NOT_REMOVE_CARD_NUMBER;
-                UnsafeUtility.MemCpyReplicate(ptr, &value, 1, array.Length);
+                MemClear(ptr, array.Length);
             }
+        }
+
+        public static unsafe void MemClear(sbyte* ptr, int length)
+        {
+            var value = NOT_REMOVE_CARD_NUMBER;
+            UnsafeUtility.MemCpyReplicate(ptr, &value, 1, length);
         }
     }
 }
