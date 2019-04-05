@@ -19,19 +19,27 @@ namespace AddAndBanish.Tests
         [Test]
         public void ShrinkTest()
         {
-            var board = new Board(4, new sbyte[] {
+            var builder = new BoardBuilder_MUST_BE_DISPOSED();
+            try
+            {
+                var board = new Board(4, new sbyte[] {
                 3, 2, 1, 4,
                 2, 3, 2, 2,
                 2, 2, 2, 4,
                 2, 2, 2, 5});
-            Assert.IsTrue(board.IsMultipleOfArgument(10));
-            Board.Shrink_UNSAFE_SIDEEFFECT(ref board, 2, 2);
-            Assert.IsTrue(board.IsMultipleOfArgument(10));
-            Assert.AreEqual(4, board.Length);
-            Assert.AreEqual(3, board.Cards[0]);
-            Assert.AreEqual(2, board.Cards[1]);
-            Assert.AreEqual(2, board.Cards[2]);
-            Assert.AreEqual(3, board.Cards[3]);
+                Assert.IsTrue(board.IsMultipleOfArgument(10));
+                board = builder.FromBoard(board).Shrink(2, 2).ToBoard();
+                Assert.IsTrue(board.IsMultipleOfArgument(10));
+                Assert.AreEqual(4, board.Length);
+                Assert.AreEqual(3, board.Cards[0]);
+                Assert.AreEqual(2, board.Cards[1]);
+                Assert.AreEqual(2, board.Cards[2]);
+                Assert.AreEqual(3, board.Cards[3]);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
         }
 
         [Test]
@@ -43,7 +51,7 @@ namespace AddAndBanish.Tests
                 2, 2, 2, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER,
                 CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER});
             Assert.IsTrue(board.IsMultipleOfArgument(10));
-            var highest = Board.GetHeighestColumnHeight(board, board.Width);
+            var highest = board.GetHeighestColumnHeight(board.Width);
             Assert.AreEqual(3, highest);
         }
 
@@ -57,8 +65,8 @@ namespace AddAndBanish.Tests
                 2, 2, 2, 4,});
             Assert.IsTrue(board.IsMultipleOfArgument(10));
             var width = 4;
-            Assert.IsTrue(Board.IsEmptyColumn(board, 2));
-            Board.RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(board, 2, ref width);
+            Assert.IsTrue(board.IsEmptyColumn(2));
+            board.RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(2, ref width);
             Assert.AreEqual(3, width);
             Assert.AreEqual(2, board.Cards[8]);
             Assert.AreEqual(2, board.Cards[9]);
