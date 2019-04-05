@@ -103,7 +103,7 @@ namespace AddAndBanish.Tests
                 Assert.AreEqual(CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, rems.Cards[i]);
             var rems_00_3_01_2_10_2_11_3 = rems.Add(0, 0, 3).Add(0, 1, 2).Add(1, 0, 2).Add(1, 1, 3);
             Assert.IsTrue(rems_00_3_01_2_10_2_11_3.IsValid(10));
-            var newBoard = board.CalcNextStepByRemove(rems_00_3_01_2_10_2_11_3);
+            var newBoard = rems_00_3_01_2_10_2_11_3.CalcNextStepByRemove(board);
             Assert.AreEqual(1, newBoard.Cards[0]);
             Assert.AreEqual(4, newBoard.Cards[1]);
             Assert.AreEqual(CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, newBoard.Cards[2]);
@@ -135,7 +135,7 @@ namespace AddAndBanish.Tests
                 Assert.AreEqual(CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, rems.Cards[i]);
             var rems_00_3 = rems.Add(0, 0, 3);
             Assert.AreEqual(3, rems_00_3.Sum);
-            var newBoard = board.CalcNextStepByRemove(rems_00_3);
+            var newBoard = rems_00_3.CalcNextStepByRemove(board);
             Assert.AreEqual(2, newBoard.Cards[0]);
             Assert.AreEqual(1, newBoard.Cards[1]);
             Assert.AreEqual(4, newBoard.Cards[2]);
@@ -153,6 +153,43 @@ namespace AddAndBanish.Tests
             Assert.AreEqual(2, newBoard.Cards[14]);
             Assert.AreEqual(5, newBoard.Cards[15]);
             Assert.IsFalse(rems_00_3.IsValid(10));
+        }
+
+        [Test]
+        public void ConnectionTest()
+        {
+            var board = new Board(4, new sbyte[] {
+                3, 2, 1, 4,
+                2, 3, 2, 2,
+                2, 2, 2, 4,
+                2, 2, 2, 5});
+            var rems = new RemoveCards(board);
+            for (int i = 0; i < rems.Length; i++)
+                Assert.AreEqual(CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, rems.Cards[i]);
+            var rems_00_3_01_2_10_2_11_3 = rems.Add(0, 0, 3).Add(0, 1, 2).Add(1, 0, 2).Add(1, 1, 3);
+            Assert.IsTrue(rems_00_3_01_2_10_2_11_3.IsValid(10));
+            Assert.AreEqual(2, rems_00_3_01_2_10_2_11_3.GetConnection(0, 0));
+            Assert.AreEqual(2, rems_00_3_01_2_10_2_11_3.GetConnection(0, 1));
+            Assert.AreEqual(1, rems_00_3_01_2_10_2_11_3.GetConnection(0, 2));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(0, 3));
+            Assert.AreEqual(2, rems_00_3_01_2_10_2_11_3.GetConnection(1, 0));
+            Assert.AreEqual(2, rems_00_3_01_2_10_2_11_3.GetConnection(1, 1));
+            Assert.AreEqual(1, rems_00_3_01_2_10_2_11_3.GetConnection(1, 2));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(1, 3));
+            Assert.AreEqual(1, rems_00_3_01_2_10_2_11_3.GetConnection(2, 0));
+            Assert.AreEqual(1, rems_00_3_01_2_10_2_11_3.GetConnection(2, 1));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(2, 2));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(2, 3));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(3, 0));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(3, 1));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(3, 2));
+            Assert.AreEqual(0, rems_00_3_01_2_10_2_11_3.GetConnection(3, 3));
+        }
+
+        [Test]
+        public void EnumerableTest()
+        {
+            
         }
     }
 }

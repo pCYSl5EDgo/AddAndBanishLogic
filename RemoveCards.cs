@@ -1,24 +1,29 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace AddAndBanish
 {
-    public readonly struct RemoveCards : IEquatable<RemoveCards>
+    public readonly struct RemoveCards : IEquatable<RemoveCards>, IRemoveCards
     {
         internal readonly sbyte[] Cards;
         public readonly int Height;
         public readonly int Sum;
         public readonly int Count;
-        public int Width => Cards.Length / Height;
+        public readonly int Width;
         public int Length => Cards.Length;
+        int IRemoveCards.Height => Height;
+        int IRemoveCards.Width => Width;
+        int IRemoveCards.Count => Count;
+
+        int IRemoveCards.Sum => Sum;
 
         public RemoveCards(in Board board)
         {
             Cards = new sbyte[board.Length];
             Height = board.Height;
+            Width = Cards.Length / Height;
             Cards.MemClear();
             Sum = 0;
             Count = 0;
@@ -29,6 +34,7 @@ namespace AddAndBanish
             var remCards = removeCards.Cards;
             Cards = new sbyte[remCards.Length];
             Height = removeCards.Height;
+            Width = Cards.Length / Height;
             unsafe
             {
                 fixed (sbyte* dest = &Cards[0])
@@ -43,17 +49,18 @@ namespace AddAndBanish
         }
 
         public RemoveCards Add(int x, int y, sbyte number) => new RemoveCards(this, x * Height + y, number);
+        IRemoveCards IRemoveCards.Add(int x, int y, sbyte number) => Add(x, y, number);
 
         public int GetConnection(int x, int y)
         {
             int answer = 0;
-            if (x > 0 && Cards[(x - 1) * Height + y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
+            if (x > 0 && this[x - 1, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
                 ++answer;
-            if (x < Width - 1 && Cards[(x + 1) * Height + y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
+            if (x < Width - 1 && this[x + 1, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
                 ++answer;
-            if (y > 0 && Cards[x * Height + y - 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
+            if (y > 0 && this[x, y - 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
                 ++answer;
-            if (y < Height - 1 && Cards[x * Height + y + 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
+            if (y < Height - 1 && this[x, y + 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
                 ++answer;
             return answer;
         }
@@ -69,7 +76,7 @@ namespace AddAndBanish
                 {
                     for (int y = 0; y < Height; y++)
                     {
-                        if (Cards[x * Height + y] == CalcIndexHelper.NOT_REMOVE_CARD_NUMBER) continue;
+                        if (!DoesExist(x, y)) continue;
                         switch (GetConnection(x, y))
                         {
                             case 0:
@@ -87,7 +94,51 @@ namespace AddAndBanish
             }
         }
 
-        public Enumerable GetNeighborEnumerable(in Board board, int goal) => new Enumerable(this, board, goal);
+        public sbyte this[int x, int y] => Cards[x * Height + y];
+
+        public Board CalcNextStepByRemove(in Board board)
+        {
+            var builder = new BoardBuilder_MUST_BE_DISPOSED(board.Length, board.Height);
+            try
+            {
+                builder.FromBoard(board);
+                foreach (var (x, y) in this)
+                {
+                    builder.Remove(x, y);
+                    if (y == 0 && !builder.DoesExist(x, 0))
+                        builder.RemoveColumn(x);
+                }
+                builder.Shrink();
+                return builder.ToBoard();
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        public NeighborEnumerable GetNeighborEnumerable(in Board board, int goal) => new NeighborEnumerable(this, board, goal);
+        public IEnumerable<Scard> GetNeighborEnumerable(IBoard board, int goal)
+        {
+            if (board is Board concreteBoard) return GetNeighborEnumerable(concreteBoard, goal);
+            if (board is null) throw new ArgumentNullException();
+            return GetNeighborEnumerable_Internal(board, goal);
+        }
+
+        private IEnumerable<Scard> GetNeighborEnumerable_Internal(IBoard board, int goal)
+        {
+            for (int x = board.Width, height = board.Height; --x >= 0;)
+            {
+                for (int y = height; --y >= 0;)
+                {
+                    if (DoesExist(x, y)) continue;
+                    var currentCard = board[x, y];
+                    if (Sum + currentCard > goal) continue;
+                    if (this.Is_AnyOf4NeighborCards_RemoveCard(x, y))
+                        yield return new Scard(x, y, currentCard);
+                }
+            }
+        }
 
         public unsafe bool Equals(in RemoveCards other)
         {
@@ -103,46 +154,91 @@ namespace AddAndBanish
 
         bool IEquatable<RemoveCards>.Equals(RemoveCards other) => Equals(other);
 
-        public struct Enumerable : IEnumerable<Scard>
+        public bool Equals(IRemoveCards other)
+        {
+            if (other is RemoveCards removeCards) return Equals(removeCards);
+            if (Length != other.Length || Height != other.Height) return false;
+            for (int x = 0, width = Width; x < width; x++)
+                for (int y = 0; y < Height; y++)
+                    if (this[x, y] != other[x, y])
+                        return false;
+            return true;
+        }
+
+        public bool DoesExist(int x, int y) => this[x, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
+
+        public Enumerator GetEnumerator() => new Enumerator(this);
+        IEnumerator<(int x, int y)> IEnumerable<(int x, int y)>.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public struct Enumerator : IEnumerator<(int x, int y)>
+        {
+            private readonly RemoveCards Parent;
+            private (int x, int y) xy;
+            public (int x, int y) Current => xy;
+            (int x, int y) IEnumerator<(int x, int y)>.Current => xy;
+            object IEnumerator.Current => Current;
+
+            public Enumerator(in RemoveCards parent)
+            {
+                Parent = parent;
+                xy = (parent.Width, 0);
+            }
+
+            public void Dispose() => this = default;
+
+            public bool MoveNext()
+            {
+                while (true)
+                {
+                    if (--xy.y < 0)
+                    {
+                        xy.y = Parent.Height - 1;
+                        --xy.x;
+                    }
+                    if (xy.x < 0)
+                        return false;
+                    if (Parent.DoesExist(xy.x, xy.y))
+                        return true;
+                }
+            }
+
+            public void Reset() => xy = (Parent.Width, 0);
+        }
+
+        public struct NeighborEnumerable : IEnumerable<Scard>
         {
             private readonly sbyte[] BoardCards;
-            private readonly sbyte[] Cards;
-            private readonly int Height;
+            private readonly RemoveCards Parent;
             private readonly int Goal;
-            private readonly int RemoveSum;
-            public Enumerable(in RemoveCards parent, in Board board, int goal)
+
+            public NeighborEnumerable(in RemoveCards parent, in Board board, int goal)
             {
                 BoardCards = board.Cards;
-                Cards = parent.Cards;
-                Height = parent.Height;
-                RemoveSum = parent.Sum;
+                Parent = parent;
                 Goal = goal;
             }
 
-            public Enumerator GetEnumerator() => new Enumerator(this);
+            public NeighborEnumerator GetEnumerator() => new NeighborEnumerator(this);
 
             IEnumerator<Scard> IEnumerable<Scard>.GetEnumerator() => GetEnumerator();
 
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-            public struct Enumerator : IEnumerator<Scard>
+            public struct NeighborEnumerator : IEnumerator<Scard>
             {
                 private readonly sbyte[] BoardCards;
-                private readonly sbyte[] Cards;
-                private readonly int Height;
+                private readonly RemoveCards Parent;
                 private readonly int Goal;
-                private readonly int RemoveSum;
+                private readonly int Width;
                 private int x, y;
-                private int Length => BoardCards.Length;
 
-                public Enumerator(in Enumerable enumerable)
+                public NeighborEnumerator(in NeighborEnumerable enumerable)
                 {
                     BoardCards = enumerable.BoardCards;
-                    Cards = enumerable.Cards;
-                    Height = enumerable.Height;
-                    RemoveSum = enumerable.RemoveSum;
+                    Parent = enumerable.Parent;
                     Goal = enumerable.Goal;
-                    x = enumerable.Cards.Length / Height;
+                    Width = x = Parent.Cards.Length / Parent.Height;
                     y = 0;
                 }
 
@@ -152,66 +248,29 @@ namespace AddAndBanish
                     {
                         if (y-- == 0)
                         {
-                            y = Height - 1;
+                            y = Parent.Height - 1;
                             --x;
                         }
-                        var index = x * Height + y;
-                        if (index < 0) return false;
-                        if (IsInvalidRemoveCandidate(index))
+                        if (x < 0) return false;
+                        if (Parent.IsInvalidRemoveCandidate(x, y, this.BoardCards, this.Goal))
                             continue;
-                        if ((x > 0 && IsRemoveCardMember(index - Height)) ||
-                            (index + Height < Length && IsRemoveCardMember(index + Height)) ||
-                            (y > 0 && IsRemoveCardMember(index - 1)) ||
-                            (y + 1 < Height && IsRemoveCardMember(index + 1))) return true;
+                        if (Parent.Is_AnyOf4NeighborCards_RemoveCard(x, y))
+                            return true;
                     }
                 }
 
-                public Scard Current => new Scard(x, y, BoardCards[x * Height + y]);
+                public Scard Current => new Scard(x, y, BoardCards[x * Parent.Height + y]);
 
                 object IEnumerator.Current => Current;
 
-                private bool IsRemoveCardMember(int index) => Cards[index] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
-                private bool IsInvalidRemoveCandidate(int index) => IsRemoveCardMember(index) || BoardCards[index] + RemoveSum > Goal;
-
                 public void Reset()
                 {
-                    x = Length / Height;
+                    x = Width;
                     y = 0;
                 }
 
                 public void Dispose() { }
             }
         }
-    }
-
-
-    public struct RemoveCards_UNSAFE_MUTABLE
-    {
-        public sbyte[] Cards;
-        public int Height;
-        public int Sum;
-        public int Count;
-
-        public void Add(int x, int y, sbyte card)
-        {
-            var index = x * Height + y;
-            if (Cards[index] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER) return;
-            Cards[index] = card;
-            Sum += card;
-            ++Count;
-        }
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    public struct RemoveCards_UNSAFE_UNION : IEquatable<RemoveCards>, IEquatable<RemoveCards_UNSAFE_UNION>
-    {
-        [FieldOffset(0)]
-        public RemoveCards_UNSAFE_MUTABLE Mutable;
-        [FieldOffset(0)]
-        public RemoveCards Immutable;
-
-        public bool Equals(RemoveCards other) => Immutable.Equals(other);
-
-        bool IEquatable<RemoveCards_UNSAFE_UNION>.Equals(RemoveCards_UNSAFE_UNION other) => Equals(other.Immutable);
     }
 }
