@@ -9,17 +9,30 @@ namespace AddAndBanish
             for (int y = board.Height; --y >= 0;)
             {
                 for (int x = 0, end = board.Width; x < end; x++)
-                    buffer.AppendCard(board.Cards[x * board.Height + y]);
+                    buffer.AppendCard(board[x, y]);
                 buffer.Append('\n');
             }
             return buffer;
         }
-        public static StringBuilder AppendBoard_ArraySequence(this StringBuilder buffer, in Board board)
+        public static StringBuilder AppendBoard_GameView<T>(this StringBuilder buffer, ref T board)
+            where T : struct, IBoard
+        {
+            for (int y = board.Height; --y >= 0;)
+            {
+                for (int x = 0, end = board.Width; x < end; x++)
+                    buffer.AppendCard(board[x, y]);
+                buffer.Append('\n');
+            }
+            return buffer;
+        }
+
+        public static StringBuilder AppendBoard_ArraySequence<T>(this StringBuilder buffer, ref T board)
+            where T : struct, IBoard
         {
             for (int x = 0, end = board.Width; x < end; x++)
             {
                 for (int y = 0; y < board.Height; y++)
-                    buffer.AppendCard(board.Cards[x * board.Height + y]);
+                    buffer.AppendCard(board[x, y]);
                 buffer.Append('\n');
             }
             return buffer;
