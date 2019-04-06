@@ -61,9 +61,9 @@ namespace AddAndBanish
             }
         }
 
-        internal static int CalcHeight(sbyte* cards, int height, int x)
+        internal static int CalcHeight(sbyte* cards, int maxHeight, int x)
         {
-            for (int start = (x + 1) * height, temporaryHeight = height, end = x * height; --start >= end; temporaryHeight--)
+            for (int start = (x + 1) * maxHeight, temporaryHeight = maxHeight, end = x * maxHeight; --start >= end; temporaryHeight--)
                 if (cards[start] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
                     return temporaryHeight;
             return 0;
