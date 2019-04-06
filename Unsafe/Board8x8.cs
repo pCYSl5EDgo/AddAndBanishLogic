@@ -8,17 +8,29 @@ namespace AddAndBanish.LowLevel.Unsafe
         internal readonly int hashCode;
         internal readonly int height;
         internal readonly int width;
-        internal fixed sbyte Values[64];
-
-        public Board8x8(sbyte[] values, int height)
+        internal fixed sbyte Cards[64];
+        public Board8x8(int height, sbyte[] copySource)
         {
             this.height = height;
-            this.width = values.Length / height;
-            fixed (sbyte* dest = Values)
-            fixed (sbyte* src = &values[0])
+            this.width = copySource.Length / height;
+            fixed (sbyte* dest = Cards)
+            fixed (sbyte* src = &copySource[0])
             {
                 CalcIndexHelper.MemClear(dest, 64);
                 UnsafeUtility.MemCpyStride(dest, 8, src, height, height, width);
+                hashCode = CalcHashCode(width, dest);
+            }
+        }
+
+        internal Board8x8(sbyte* copySource, int width, int height)
+        {
+            this.width = width;
+            this.height = height;
+            fixed (sbyte* dest = Cards)
+            {
+                CalcIndexHelper.MemClear(dest, 64);
+                if (copySource != null)
+                    UnsafeUtility.MemCpyStride(dest, 8, copySource, height, height, width);
                 hashCode = CalcHashCode(width, dest);
             }
         }
@@ -81,25 +93,33 @@ namespace AddAndBanish.LowLevel.Unsafe
             return (int)answer;
         }
 
-        int IBoard.Height => height;
+        public int Height => height;
 
-        int IBoard.Width => width;
+        public int Width => width;
 
-        int IBoard.Length => height * width;
+        public int Length => height * width;
 
-        sbyte IBoard.this[int x, int y] => Values[(x << 3) + y];
+        public sbyte this[int x, int y] => Cards[(x << 3) + y];
 
         public Board8x8 Clone() => this;
         IBoard IBoard.Clone() => Clone();
 
-        public bool DoesExist(int x, int y) => Values[(x << 3) + y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
+        public int GetHeight(int x)
+        {
+            fixed(sbyte* ptr = Cards)
+            {
+                return BoardHelper.CalcHeight(ptr, 8, x);
+            }
+        }
 
-        bool IBoard.IsMultipleOfArgument(int goal)
+        public bool DoesExist(int x, int y) => Cards[(x << 3) + y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
+
+        public bool IsMultipleOfArgument(int goal)
         {
             var sum = 0;
             for (int i = 0; i < 64; i++)
-                if (Values[i] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
-                    sum += Values[i];
+                if (Cards[i] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
+                    sum += Cards[i];
             return sum % goal == 0;
         }
 
@@ -110,7 +130,7 @@ namespace AddAndBanish.LowLevel.Unsafe
             if (this.height != other.Height || this.width != other.Width) return false;
             for (int x = width; --x >= 0;)
                 for (int y = height; --y >= 0;)
-                    if (Values[(x << 3) + y] != other[x, y])
+                    if (Cards[(x << 3) + y] != other[x, y])
                         return false;
             return true;
         }
@@ -121,13 +141,20 @@ namespace AddAndBanish.LowLevel.Unsafe
         {
             if (hashCode != other.hashCode || this.height != other.height || this.width != other.width)
                 return false;
-            fixed (sbyte* ptr0 = Values)
+            fixed (sbyte* ptr0 = Cards)
             fixed (Board8x8* ptr1 = &other)
             {
-                return UnsafeUtility.MemCmp(ptr0, ptr1->Values, 64) == 0;
+                return UnsafeUtility.MemCmp(ptr0, ptr1->Cards, 64) == 0;
             }
         }
 
         public override int GetHashCode() => hashCode;
+        public override string ToString()
+        {
+            var buffer = new System.Text.StringBuilder(5 * Length);
+            buffer.Append("{ Width : ").Append(Width).Append(", Height : ").Append(Height).Append("}\n");
+            buffer.AppendBoard_GameView(ref this);
+            return buffer.ToString();
+        }
     }
 }
