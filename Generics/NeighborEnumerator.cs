@@ -26,7 +26,7 @@ namespace AddAndBanish.Generics
 
         void IDisposable.Dispose() => this = default;
 
-        bool IEnumerator.MoveNext()
+        public bool MoveNext()
         {
             while (true)
             {
@@ -36,6 +36,7 @@ namespace AddAndBanish.Generics
                     --x;
                 }
                 if (x < 0) return false;
+                if (Parent[x, y]) continue;
                 var card = Board[x, y];
                 if (card + Parent.Sum > Goal) continue;
                 if (Parent.Is_AnyOf4NeighborCards_RemoveCard(x, y))
