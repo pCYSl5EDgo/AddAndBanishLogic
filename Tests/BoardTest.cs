@@ -31,10 +31,10 @@ namespace AddAndBanish.Tests
                 board = builder.FromBoard(board).Shrink(2, 2).ToBoard();
                 Assert.IsTrue(board.IsMultipleOfArgument(10));
                 Assert.AreEqual(4, board.Length);
-                Assert.AreEqual(3, board.Cards[0]);
-                Assert.AreEqual(2, board.Cards[1]);
-                Assert.AreEqual(2, board.Cards[2]);
-                Assert.AreEqual(3, board.Cards[3]);
+                Assert.AreEqual(3, board[0, 0]);
+                Assert.AreEqual(2, board[0, 1]);
+                Assert.AreEqual(2, board[1, 0]);
+                Assert.AreEqual(3, board[1, 1]);
             }
             finally
             {
@@ -64,14 +64,20 @@ namespace AddAndBanish.Tests
                 CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER, CalcIndexHelper.NOT_REMOVE_CARD_NUMBER,
                 2, 2, 2, 4,});
             Assert.IsTrue(board.IsMultipleOfArgument(10));
-            var width = 4;
             Assert.IsTrue(board.IsEmptyColumn(2));
-            board.RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(2, ref width);
-            Assert.AreEqual(3, width);
-            Assert.AreEqual(2, board.Cards[8]);
-            Assert.AreEqual(2, board.Cards[9]);
-            Assert.AreEqual(2, board.Cards[10]);
-            Assert.AreEqual(4, board.Cards[11]);
+            var builder = new BoardBuilder_MUST_BE_DISPOSED();
+            try
+            {
+                builder.FromBoard(ref board);
+                builder.RemoveColumn(2);
+                board = builder.ToBoard();
+                Assert.AreEqual(3, board.Width);
+                Assert.AreEqual(2, board[2, 0]);
+                Assert.AreEqual(2, board[2, 1]);
+                Assert.AreEqual(2, board[2, 2]);
+                Assert.AreEqual(4, board[2, 3]);
+            }
+            finally { builder.Dispose(); }
         }
     }
 }
