@@ -4,22 +4,8 @@ namespace AddAndBanish
 {
     internal unsafe static class BoardHelper
     {
-        internal static void RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(this in Board board, int x, ref int width)
-        {
-            fixed (sbyte* ptr = &board.Cards[x * board.Height])
-            {
-                RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(ptr, x, ref width, board.Height);
-            }
-        }
-
-        internal static void RemoveColumnFromBoard_UNSAFE_UNSAFE_SIDEEFFECT(sbyte* ptr, int x, ref int width, int height)
-        {
-            --width;
-            // 1列左に詰める
-            UnsafeUtility.MemMove(ptr, ptr + height, height * (width - x));
-        }
-
         internal static bool IsEmptyColumn(this in Board board, int x) => board.Cards.IsEmptyColumn(x, board.Height);
+        internal static bool IsEmptyColumn<T>(this ref T board, int x) where T : struct, IBoard => board.GetHeight(x) == 0;
         internal static bool IsEmptyColumn(this sbyte[] cards, int x, int height)
         {
             // その列について
@@ -59,6 +45,26 @@ namespace AddAndBanish
             {
                 return GetHeighestColumnHeight(cards, width, answer.Height);
             }
+        }
+
+        internal static int GetHeighestColumnHeight(this in LowLevel.Unsafe.Board8x8 answer, int width)
+        {
+            fixed (sbyte* cards = answer.Cards)
+            {
+                return GetHeighestColumnHeight(cards, width, answer.height);
+            }
+        }
+
+        internal static int GetHeighestColumnHeight<T>(this ref T board, int width) where T : struct, IBoard
+        {
+            int highestHeight = 0;
+            for (int x = 0; x < width; x++)
+            {
+                var height = board.GetHeight(x);
+                if (height > highestHeight)
+                    highestHeight = height;
+            }
+            return highestHeight;
         }
 
         internal static int CalcHeight(sbyte* cards, int maxHeight, int x)
