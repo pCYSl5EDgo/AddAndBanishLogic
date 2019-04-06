@@ -96,7 +96,19 @@ namespace AddAndBanish
             return ref builder;
         }
 
-        public static ref BoardBuilder_MUST_BE_DISPOSED FromBoard<T>(this ref BoardBuilder_MUST_BE_DISPOSED builder, T board) where T : IBoard
+        public static ref BoardBuilder_MUST_BE_DISPOSED FromBoard(this ref BoardBuilder_MUST_BE_DISPOSED builder, in Board board)
+        {
+            int width = builder.width < board.Width ? board.Width : builder.width;
+            int height = builder.height < board.Height ? board.Height : builder.height;
+            builder.EnlargeWidthHeight(width, height);
+            for (int x = 0; x < width; x++)
+                for (int y = 0; y < height; y++)
+                    builder[x, y] = board[x, y];
+            return ref builder;
+        }
+
+        public static ref BoardBuilder_MUST_BE_DISPOSED FromBoard<T>(this ref BoardBuilder_MUST_BE_DISPOSED builder, ref T board)
+            where T : struct, IBoard
         {
             int width = builder.width < board.Width ? board.Width : builder.width;
             int height = builder.height < board.Height ? board.Height : builder.height;
