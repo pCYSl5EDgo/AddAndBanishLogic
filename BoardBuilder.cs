@@ -32,6 +32,8 @@ namespace AddAndBanish
             return answer;
         }
 
+        public LowLevel.Unsafe.Board8x8 ToBoard8x8() => new LowLevel.Unsafe.Board8x8(this.cards, this.width, this.height);
+
         public sbyte this[int x, int y]
         {
             get => cards[x * height + y];
