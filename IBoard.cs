@@ -13,5 +13,6 @@ namespace AddAndBanish
         IBoard Clone();
         bool IsMultipleOfArgument(int goal);
         bool DoesExist(int x, int y);
+        int GetHeight(int x);
     }
 }

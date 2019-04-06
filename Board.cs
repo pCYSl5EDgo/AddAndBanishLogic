@@ -42,6 +42,14 @@ namespace AddAndBanish
 
         IBoard IBoard.Clone() => Clone();
 
+        public unsafe int GetHeight(int x)
+        {
+            fixed (sbyte* cards = &Cards[0])
+            {
+                return BoardHelper.CalcHeight(cards, Height, x);
+            }
+        }
+
         public bool DoesExist(int x, int y) => this[x, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
 
         public bool IsMultipleOfArgument(int goal)
