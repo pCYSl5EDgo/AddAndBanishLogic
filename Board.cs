@@ -42,6 +42,8 @@ namespace AddAndBanish
 
         IBoard IBoard.Clone() => Clone();
 
+        public bool DoesExist(int x, int y) => this[x, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
+
         public bool IsMultipleOfArgument(int goal)
         {
             int sum = 0;

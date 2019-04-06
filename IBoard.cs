@@ -12,5 +12,6 @@ namespace AddAndBanish
         sbyte this[int x, int y] { get; }
         IBoard Clone();
         bool IsMultipleOfArgument(int goal);
+        bool DoesExist(int x, int y);
     }
 }
