@@ -4,12 +4,14 @@ using System.Collections.Generic;
 
 namespace AddAndBanish.Generics
 {
-    public struct RemoveCardsEnumerator<T> : IEnumerator<(int x, int y)> where T : IRemoveCards
+    public struct RemoveCardsEnumerator<TBoard, TRemoveCards> : IEnumerator<(int x, int y)>
+        where TRemoveCards : IRemoveCards<TBoard>
+        where TBoard : struct, IBoard
     {
-        private T Parent;
+        private TRemoveCards Parent;
         private (int x, int y) xy;
 
-        internal RemoveCardsEnumerator(in T parent)
+        internal RemoveCardsEnumerator(in TRemoveCards parent)
         {
             Parent = parent;
             xy = (parent.Width, 0);
@@ -28,7 +30,7 @@ namespace AddAndBanish.Generics
                     --xy.x;
                 }
                 if (xy.x < 0) return false;
-                if (Parent.DoesExist(xy.x, xy.y))
+                if (Parent[xy.x, xy.y])
                     return true;
             }
         }
