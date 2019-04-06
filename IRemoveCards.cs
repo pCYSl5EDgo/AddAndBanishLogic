@@ -16,8 +16,12 @@ namespace AddAndBanish
         bool IsValid(int goal);
         bool IsHamilton { get; }
 
-        bool DoesExist(int x, int y);
-
-        sbyte this[int x, int y] { get; }
+        bool this[int x, int y] { get; }
+    }
+    public interface IRemoveCards<TBoard> : IEquatable<IRemoveCards<TBoard>>, IRemoveCards
+        where TBoard : struct, IBoard
+    {
+        TBoard CalcNextStepByRemove(TBoard board);
+        new IRemoveCards<TBoard> Add(int x, int y, sbyte number);
     }
 }

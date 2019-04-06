@@ -5,7 +5,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace AddAndBanish
 {
-    public readonly struct RemoveCards : IEquatable<RemoveCards>, IRemoveCards
+    public readonly struct RemoveCards : IEquatable<RemoveCards>, IRemoveCards<Board>
     {
         internal readonly sbyte[] Cards;
         public readonly int Height;
@@ -50,20 +50,10 @@ namespace AddAndBanish
 
         public RemoveCards Add(int x, int y, sbyte number) => new RemoveCards(this, x * Height + y, number);
         IRemoveCards IRemoveCards.Add(int x, int y, sbyte number) => Add(x, y, number);
+        IRemoveCards<Board> IRemoveCards<Board>.Add(int x, int y, sbyte number) => Add(x, y, number);
 
         public int GetConnection(int x, int y)
-        {
-            int answer = 0;
-            if (x > 0 && this[x - 1, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
-                ++answer;
-            if (x < Width - 1 && this[x + 1, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
-                ++answer;
-            if (y > 0 && this[x, y - 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
-                ++answer;
-            if (y < Height - 1 && this[x, y + 1] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER)
-                ++answer;
-            return answer;
-        }
+        => (x > 0 && DoesExist(x - 1, y) ? 1 : 0) + (x < Width - 1 && DoesExist(x + 1, y) ? 1 : 0) + (y > 0 && DoesExist(x, y - 1) ? 1 : 0) + (y < Height - 1 && DoesExist(x, y + 1) ? 1 : 0);
 
         public bool IsValid(int goal) => Sum == goal && IsHamilton;
 
@@ -94,8 +84,9 @@ namespace AddAndBanish
             }
         }
 
-        public sbyte this[int x, int y] => Cards[x * Height + y];
-
+        internal sbyte this[int x, int y] => Cards[x * Height + y];
+        bool IRemoveCards.this[int x, int y] => DoesExist(x, y);
+        Board IRemoveCards<Board>.CalcNextStepByRemove(Board board) => CalcNextStepByRemove(board);
         public Board CalcNextStepByRemove(in Board board)
         {
             var builder = new BoardBuilder_MUST_BE_DISPOSED(board.Length, board.Height);
@@ -117,29 +108,6 @@ namespace AddAndBanish
             }
         }
 
-        public NeighborEnumerable GetNeighborEnumerable(in Board board, int goal) => new NeighborEnumerable(this, board, goal);
-        public IEnumerable<Scard> GetNeighborEnumerable(IBoard board, int goal)
-        {
-            if (board is Board concreteBoard) return GetNeighborEnumerable(concreteBoard, goal);
-            if (board is null) throw new ArgumentNullException();
-            return GetNeighborEnumerable_Internal(board, goal);
-        }
-
-        private IEnumerable<Scard> GetNeighborEnumerable_Internal(IBoard board, int goal)
-        {
-            for (int x = board.Width, height = board.Height; --x >= 0;)
-            {
-                for (int y = height; --y >= 0;)
-                {
-                    if (DoesExist(x, y)) continue;
-                    var currentCard = board[x, y];
-                    if (Sum + currentCard > goal) continue;
-                    if (this.Is_AnyOf4NeighborCards_RemoveCard(x, y))
-                        yield return new Scard(x, y, currentCard);
-                }
-            }
-        }
-
         public unsafe bool Equals(in RemoveCards other)
         {
             if (this.Sum != other.Sum || this.Height != other.Height || this.Count != other.Count) return false;
@@ -151,126 +119,39 @@ namespace AddAndBanish
                 return UnsafeUtility.MemCmp(thisPtr, otherPtr, Length) == 0;
             }
         }
-
         bool IEquatable<RemoveCards>.Equals(RemoveCards other) => Equals(other);
-
         public bool Equals(IRemoveCards other)
         {
+            if (other is null) return false;
             if (other is RemoveCards removeCards) return Equals(removeCards);
             if (Length != other.Length || Height != other.Height) return false;
             for (int x = 0, width = Width; x < width; x++)
                 for (int y = 0; y < Height; y++)
-                    if (this[x, y] != other[x, y])
+                    if (DoesExist(x, y) != other[x, y])
+                        return false;
+            return true;
+        }
+
+        public bool Equals(IRemoveCards<Board> other)
+        {
+            if (other is null) return false;
+            if (other is RemoveCards removeCards) return Equals(removeCards);
+            if (Length != other.Length || Height != other.Height) return false;
+            for (int x = 0, width = Width; x < width; x++)
+                for (int y = 0; y < Height; y++)
+                    if (DoesExist(x, y) != other[x, y])
                         return false;
             return true;
         }
 
         public bool DoesExist(int x, int y) => this[x, y] != CalcIndexHelper.NOT_REMOVE_CARD_NUMBER;
 
-        public Enumerator GetEnumerator() => new Enumerator(this);
+        public Generics.NeighborEnumerable<Board, RemoveCards> GetNeighborEnumerable(in Board board, int goal) => new Generics.NeighborEnumerable<Board, RemoveCards>(board, this, goal);
+        IEnumerable<Scard> IRemoveCards.GetNeighborEnumerable(IBoard board, int goal)
+        => board is null ? throw new ArgumentNullException() : board is Board _board ? (IEnumerable<Scard>)GetNeighborEnumerable(_board, goal) : new Generics.NeighborEnumerable<IBoard, RemoveCards>(board, this, goal);
+        public Generics.RemoveCardsEnumerator<Board, RemoveCards> GetEnumerator() => new Generics.RemoveCardsEnumerator<Board, RemoveCards>(this);
         IEnumerator<(int x, int y)> IEnumerable<(int x, int y)>.GetEnumerator() => GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public struct Enumerator : IEnumerator<(int x, int y)>
-        {
-            private readonly RemoveCards Parent;
-            private (int x, int y) xy;
-            public (int x, int y) Current => xy;
-            (int x, int y) IEnumerator<(int x, int y)>.Current => xy;
-            object IEnumerator.Current => Current;
-
-            public Enumerator(in RemoveCards parent)
-            {
-                Parent = parent;
-                xy = (parent.Width, 0);
-            }
-
-            public void Dispose() => this = default;
-
-            public bool MoveNext()
-            {
-                while (true)
-                {
-                    if (--xy.y < 0)
-                    {
-                        xy.y = Parent.Height - 1;
-                        --xy.x;
-                    }
-                    if (xy.x < 0)
-                        return false;
-                    if (Parent.DoesExist(xy.x, xy.y))
-                        return true;
-                }
-            }
-
-            public void Reset() => xy = (Parent.Width, 0);
-        }
-
-        public struct NeighborEnumerable : IEnumerable<Scard>
-        {
-            private readonly sbyte[] BoardCards;
-            private readonly RemoveCards Parent;
-            private readonly int Goal;
-
-            public NeighborEnumerable(in RemoveCards parent, in Board board, int goal)
-            {
-                BoardCards = board.Cards;
-                Parent = parent;
-                Goal = goal;
-            }
-
-            public NeighborEnumerator GetEnumerator() => new NeighborEnumerator(this);
-
-            IEnumerator<Scard> IEnumerable<Scard>.GetEnumerator() => GetEnumerator();
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-            public struct NeighborEnumerator : IEnumerator<Scard>
-            {
-                private readonly sbyte[] BoardCards;
-                private readonly RemoveCards Parent;
-                private readonly int Goal;
-                private readonly int Width;
-                private int x, y;
-
-                public NeighborEnumerator(in NeighborEnumerable enumerable)
-                {
-                    BoardCards = enumerable.BoardCards;
-                    Parent = enumerable.Parent;
-                    Goal = enumerable.Goal;
-                    Width = x = Parent.Cards.Length / Parent.Height;
-                    y = 0;
-                }
-
-                public bool MoveNext()
-                {
-                    while (true)
-                    {
-                        if (y-- == 0)
-                        {
-                            y = Parent.Height - 1;
-                            --x;
-                        }
-                        if (x < 0) return false;
-                        if (Parent.IsInvalidRemoveCandidate(x, y, this.BoardCards, this.Goal))
-                            continue;
-                        if (Parent.Is_AnyOf4NeighborCards_RemoveCard(x, y))
-                            return true;
-                    }
-                }
-
-                public Scard Current => new Scard(x, y, BoardCards[x * Parent.Height + y]);
-
-                object IEnumerator.Current => Current;
-
-                public void Reset()
-                {
-                    x = Width;
-                    y = 0;
-                }
-
-                public void Dispose() { }
-            }
-        }
     }
 }
